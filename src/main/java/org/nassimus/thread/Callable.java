@@ -1,6 +1,6 @@
 package org.nassimus.thread;
 
-public abstract class Callback<V> implements Runnable {
+public abstract class Callable<V> implements Runnable {
     private ExecutorWithFlowControl<V> executorWithFlowControl = null;
 
     public void setExecutorWithFlowControl(ExecutorWithFlowControl<V> executorWithFlowControl) {

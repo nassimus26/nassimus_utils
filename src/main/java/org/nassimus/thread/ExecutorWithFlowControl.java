@@ -1,9 +1,7 @@
 package org.nassimus.thread;
 
 import java.text.DecimalFormat;
-import java.util.Queue;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -12,7 +10,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class ExecutorWithFlowControl<V> {
+public abstract class ExecutorWithFlowControl<V> {
 
     private static Runtime runtime = Runtime.getRuntime();
     private static int mb = 1024 * 1024;
@@ -33,6 +31,9 @@ public class ExecutorWithFlowControl<V> {
     private final AtomicInteger counterForName = new AtomicInteger();
 
     private Timer timer = null;
+    private BuffredCallable<V> callable;
+    private List<V> buffer;
+    private int bufferSize;
     /**
      * Name examples :
      * </p>
@@ -41,13 +42,17 @@ public class ExecutorWithFlowControl<V> {
      * Executor __|__ PROCESS
      * </p>
      * Executor __|__|__ WRITER
-     * 
+     *
+     * @param callable
      * @param nbThreads
      * @param maxQueueSize
      * @param name
      */
-    public ExecutorWithFlowControl(int nbThreads, int maxQueueSize, final String name) {
+    public ExecutorWithFlowControl(BuffredCallable<V> callable, int bufferSize, int nbThreads, int maxQueueSize, final String name) {
         this.timeMilliStart = System.currentTimeMillis();
+        this.bufferSize = bufferSize;
+        this.callable = callable;
+        this.buffer = new ArrayList<>();
         this.nbTotalTasks = nbThreads + maxQueueSize;
         this.semaphore = new Semaphore(nbTotalTasks);
         this.name = name;
@@ -58,6 +63,10 @@ public class ExecutorWithFlowControl<V> {
                 return new Thread(r, name + "_" + counterForName.incrementAndGet());
             }
         });
+    }
+
+    public ExecutorWithFlowControl(int nbThreads, int maxQueueSize, final String name) {
+        this(null,0, nbThreads, maxQueueSize, name );
     }
 
     public void setThrowable(Throwable e) {
@@ -85,17 +94,37 @@ public class ExecutorWithFlowControl<V> {
     protected void processAggregation(V elementToAggregate) {
     }
 
-    public void submitWithException(Callback<V> callable) throws Throwable {
+    public void submitWithException(Callable<V> callable) throws Throwable {
         submit(callable);
         if (executionExceptions.size() > 0) {
             throw executionExceptions.poll();
         }
     }
 
-    public void submit(Callback<V> callable) throws InterruptedException {
+    public void submit(V params) throws InterruptedException {
+        synchronized (buffer){
+            buffer.add(params);
+            if (buffer.size()==bufferSize){
+                process();
+            }
+        }
+    }
+
+    public void submit(Callable<V> callable) throws InterruptedException {
         semaphore.acquire();
         callable.setExecutorWithFlowControl(this);
         executor.execute(callable);
+    }
+    public abstract boolean isWorkDone();
+    private void process() throws InterruptedException{
+        submit(new Callable<V>() {
+            @Override
+            public V call() throws Throwable {
+                callable.call((V[]) buffer.toArray());
+                return null;
+            }
+        });
+        buffer.clear();
     }
 
     public void waitAndShutdownWithException() throws Throwable {
