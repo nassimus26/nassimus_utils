@@ -1,4 +1,4 @@
-package org.date;
+package org.nassimus.date;
 
 import java.util.Date;
 import java.util.concurrent.TimeUnit;

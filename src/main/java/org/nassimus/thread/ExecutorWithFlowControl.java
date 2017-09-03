@@ -1,4 +1,4 @@
-package org.thread;
+package org.nassimus.thread;
 
 import java.text.DecimalFormat;
 import java.util.Queue;
@@ -71,8 +71,8 @@ public class ExecutorWithFlowControl<V> {
         }
     }
 
-    public void aggregator4(V elementToAggregate) {
-        aggregator(elementToAggregate);
+    public void aggregate(V elementToAggregate) {
+        processAggregation(elementToAggregate);
         semaphore.release();
         synchronized (this) {
             if (semaphore.availablePermits() != nbTotalTasks) {
@@ -82,19 +82,19 @@ public class ExecutorWithFlowControl<V> {
         }
     }
 
-    protected void aggregator(V elementToAggregate) {
+    protected void processAggregation(V elementToAggregate) {
     }
 
-    public void submitWithException(CallableAbs<V> callable) throws Throwable {
+    public void submitWithException(Callback<V> callable) throws Throwable {
         submit(callable);
         if (executionExceptions.size() > 0) {
             throw executionExceptions.poll();
         }
     }
 
-    public void submit(CallableAbs<V> callable) throws InterruptedException {
+    public void submit(Callback<V> callable) throws InterruptedException {
         semaphore.acquire();
-        callable.setExecutorWithFlowControl3(this);
+        callable.setExecutorWithFlowControl(this);
         executor.execute(callable);
     }
 

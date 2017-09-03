@@ -1,4 +1,4 @@
-package org.date;
+package org.nassimus.date;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

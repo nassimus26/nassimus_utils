@@ -1,4 +1,4 @@
-package org.collection;
+package org.nassimus.collection;
 
 import java.util.Collection;
 import java.util.stream.Collectors;
